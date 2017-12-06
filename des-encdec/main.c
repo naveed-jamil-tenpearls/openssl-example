@@ -26,7 +26,7 @@ void main(int argc, char *argv[])
 {
     initialize_fips(1);
 
-    unsigned char *key = (unsigned char *)"example key 1234example key 1234";
+    unsigned char *key = (unsigned char *)"example key 1234";
     unsigned char *iv = (unsigned char *)"0123456789012341";
     unsigned char *plaintext = (unsigned char *)"exampleplaintextexampleplaintext";
     unsigned char *mode = (unsigned char *)"cbc";
@@ -124,61 +124,16 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
 
     /* Initialise the encryption operation. */
     const EVP_CIPHER *evpCipher;
-    switch (key_len) {
-    case 16:
-        if (strcmp(mode,"cbc")==0) {
-            evpCipher = EVP_aes_128_cbc();
-        } else if (strcmp(mode,"ctr")==0) {
-          evpCipher = EVP_aes_128_ctr();
-        } else if (strcmp(mode,"gcm")==0) {
-          evpCipher = EVP_aes_128_gcm();
-        } else if (strcmp(mode,"ecb")==0) {
-          evpCipher = EVP_aes_128_ecb();
-        } else {
-            fprintf(stderr, "invalid mode\n");
-            return 0;
-        }
-        break;
-    case 24:
-        if (strcmp(mode,"cbc")==0) {
-            evpCipher = EVP_aes_192_cbc();
-        } else if (strcmp(mode,"ctr")==0) {
-          evpCipher = EVP_aes_192_ctr();
-        } else if (strcmp(mode,"gcm")==0) {
-          evpCipher = EVP_aes_192_gcm();
-        } else if (strcmp(mode,"ecb")==0) {
-          evpCipher = EVP_aes_192_ecb();
-        } else {
-            fprintf(stderr, "invalid mode\n");
-            return 0;
-        }
-        break;
-    case 32:
-        if (strcmp(mode,"cbc")==0) {
-            evpCipher = EVP_aes_256_cbc();
-        } else if (strcmp(mode,"ctr")==0) {
-          evpCipher = EVP_aes_256_ctr();
-        } else if (strcmp(mode,"gcm")==0) {
-          evpCipher = EVP_aes_256_gcm();
-        } else if (strcmp(mode,"ecb")==0) {
-          evpCipher = EVP_aes_256_ecb();
-        } else {
-            fprintf(stderr, "invalid mode\n");
-            return 0;
-        }
-        break;
-    default:
-        fprintf(stderr, "invalid aes key len\n");
-        return 0;
+    if (key_len != 24) {
+      fprintf(stderr, "invalid 3DES key length");
+      return 0;
     }
+    if (strcmp(mode,"cbc")!=0) {
+      fprintf(stderr, "3DES is only supported in CBC mode");
+      return 0;
+    }
+    evpCipher = EVP_des_ede3_cbc();
 
-/*    if (strcmp(mode,"gcm")==0) {
-      printf("iv length: %d\n",strlen(iv));
-      if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, strlen(iv)/2, NULL) != 1) {
-        fprintf(stderr, "EVP_CIPHER_CTX_ctrl for GCM failed\n");
-        return 0;
-      }
-    } */
 
     if(EVP_CipherInit_ex(ctx, evpCipher, NULL, NULL, NULL, enc) <= 0) {
       fprintf(stderr, "EVP_CipherInit_ex failed (1)\n");
@@ -193,7 +148,7 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
 
     EVP_CIPHER_CTX_set_padding(ctx, 0);
 
-    /* Provide the message to be encrypted, and obtain the encrypted output. */
+    /* Provide the message to be crypted, and obtain the crypted output. */
     if(plaintext) {
         if(1 != EVP_CipherUpdate(ctx, ciphertext, &len, plaintext, plaintext_len)) {
           fprintf(stderr, "EVP_CipherUpdate failed \n");
@@ -205,7 +160,6 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     /* Finalise the cryption. Normally ciphertext bytes may be written at
      * this stage
      */
-
     if(1 != EVP_CipherFinal_ex(ctx, ciphertext + len, &len)) {
       fprintf(stderr, "EVP_CipherFinal_ex failed \n");
     }
