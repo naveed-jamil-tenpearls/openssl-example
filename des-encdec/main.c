@@ -1,8 +1,7 @@
 #include <stdio.h>
-#include <openssl/evp.h>
-#include <openssl/aes.h>
-#include <openssl/err.h>
 #include <string.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
 
 void initialize_fips(int mode) {
     if(FIPS_mode_set(mode)) {
