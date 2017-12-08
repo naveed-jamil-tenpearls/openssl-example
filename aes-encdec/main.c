@@ -21,18 +21,38 @@ void print_hex(FILE *out, const char *s) {
   fprintf(out, "\n");
 }
 
+int str2hex(const char hexstring[], unsigned char * val, int *len) {
+    const char *pos = hexstring;
+    size_t count = 0;
+
+    if (strlen(hexstring) % 2 == 1) return 0;
+
+     /* WARNING: no sanitization or error-checking whatsoever */
+    for (count = 0; count < strlen(hexstring)/2; count++) {
+        sscanf(pos, "%2hhx", &val[count]);
+        pos += 2;
+    }
+    *len = strlen(hexstring) / 2;
+
+    return 1;
+}
+
 void main(int argc, char *argv[])
 {
     initialize_fips(1);
 
-    unsigned char *key = (unsigned char *)"example key 1234example key 1234";
-    unsigned char *iv = (unsigned char *)"0123456789012341";
+    unsigned char *key_str = (unsigned char *)"example key 1234example key 1234";
+    unsigned char *iv_str = (unsigned char *)"0123456789012341";
     unsigned char *plaintext = (unsigned char *)"exampleplaintextexampleplaintext";
     unsigned char *mode = (unsigned char *)"cbc";
+    unsigned char key[1024];
+    unsigned char iv[1024];
+    int key_len = 0, iv_len = 0;
+
 
     if (argc >= 3) {
-      key = argv[1];
-      iv  = argv[2];
+      key_str = argv[1];
+      iv_str  = argv[2];
 
       if (argc >= 4) {
         plaintext = argv[3];
@@ -41,6 +61,17 @@ void main(int argc, char *argv[])
       if (argc >= 5) {
         mode = argv[4];
       }
+    }
+
+    /* Convert key and iv from string to hex */
+    if (!str2hex(key_str, key, &key_len)) {
+        printf("ERROR");
+        return;
+    }
+
+    if (!str2hex(iv_str, iv, &iv_len)) {
+        printf("ERROR");
+        return;
     }
 
     /* Buffer for ciphertext. Ensure the buffer is long enough for the
@@ -59,8 +90,7 @@ void main(int argc, char *argv[])
 
     fprintf(stdout, "\nEncryption:\n");
 
-    ciphertext_len = encdec(plaintext, strlen(plaintext), key, strlen((char *)key)/2, iv,
-                             ciphertext, mode, 1);
+    ciphertext_len = encdec(plaintext, strlen(plaintext), key, key_len, iv, ciphertext, mode, 1);
 
     /* Do something useful with the ciphertext here */
     fprintf(stdout, "Plaintext: %s\n", plaintext);
@@ -74,8 +104,7 @@ void main(int argc, char *argv[])
     /* Decrypt the ciphertext */
     fprintf(stdout, "\nDecryption:\n");
 
-    decryptedtext_len = encdec(ciphertext, ciphertext_len, key, strlen((char *)key)/2, iv,
-                                decryptedtext, mode, 0);
+    decryptedtext_len = encdec(ciphertext, ciphertext_len, key, key_len, iv, decryptedtext, mode, 0);
 
     if(decryptedtext_len < 0)
     {
@@ -95,19 +124,6 @@ void main(int argc, char *argv[])
     /* Remove error strings */
     ERR_free_strings();
 
-}
-
-void handleErrors(void)
-{
-    unsigned long errCode;
-
-    printf("An error occurred\n");
-    while(errCode = ERR_get_error())
-    {
-        char *err = ERR_error_string(errCode, NULL);
-        printf("%s\n", err);
-    }
-    abort();
 }
 
 int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int key_len,
@@ -170,14 +186,6 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         fprintf(stderr, "invalid aes key len\n");
         return 0;
     }
-
-/*    if (strcmp(mode,"gcm")==0) {
-      printf("iv length: %d\n",strlen(iv));
-      if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, strlen(iv)/2, NULL) != 1) {
-        fprintf(stderr, "EVP_CIPHER_CTX_ctrl for GCM failed\n");
-        return 0;
-      }
-    } */
 
     if(EVP_CipherInit_ex(ctx, evpCipher, NULL, NULL, NULL, enc) <= 0) {
       fprintf(stderr, "EVP_CipherInit_ex failed (1)\n");
