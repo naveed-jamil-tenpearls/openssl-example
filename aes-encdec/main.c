@@ -192,6 +192,12 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
       return 0;
     }
 
+
+    /* Set IV length if default 12 bytes (96 bits) is not appropriate for GCM mode */
+    if(strcmp(mode,"gcm")==0)
+        if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, strlen(iv), NULL))
+            fprintf(stderr, "EVP_CIPHER_CTX_ctrl GCM_SET_IVLEN failed. \n");
+
     /* Initialise key and IV */
     if(EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc) <= 0) {
       fprintf(stderr, "EVP_CipherInit_ex failed (2)\n");
