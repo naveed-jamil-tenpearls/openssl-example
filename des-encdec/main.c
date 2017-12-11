@@ -17,7 +17,7 @@ void initialize_fips(int mode) {
 
 void print_hex(FILE *out, const char *s) {
   while(*s)
-    fprintf(out, "%x", (unsigned char) *s++);
+    fprintf(out, "%02x", (unsigned char) *s++);
   fprintf(out, "\n");
 }
 
