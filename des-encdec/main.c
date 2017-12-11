@@ -48,6 +48,9 @@ void main(int argc, char *argv[])
     unsigned char key[1024];
     unsigned char iv[1024];
     int key_len = 0, iv_len = 0;
+    unsigned char ciphertext[1024];
+    unsigned char decryptedtext[1024];
+    int decryptedtext_len = 0, ciphertext_len = 0;
 
     if (argc >= 3) {
       key_str = argv[1];
@@ -73,20 +76,7 @@ void main(int argc, char *argv[])
         return;
     }
 
-    /* Buffer for ciphertext. Ensure the buffer is long enough for the
-     * ciphertext which may be longer than the plaintext, dependant on the
-     * algorithm and mode
-     */
-
-    unsigned char ciphertext[1024];
-
-    /* Buffer for the decrypted text */
-    unsigned char decryptedtext[1024];
-
-    int decryptedtext_len = 0, ciphertext_len = 0;
-
     /* Encrypt the plaintext */
-
     fprintf(stdout, "\nEncryption:\n");
 
     ciphertext_len = encdec(plaintext, strlen(plaintext), key, key_len, iv, ciphertext, mode, 1);
@@ -132,9 +122,8 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     int len = 0, ciphertext_len = 0;
 
     /* Create and initialise the context */
-
     ctx = malloc(sizeof(EVP_CIPHER_CTX));
-    EVP_CIPHER_CTX_init(ctx);
+    FIPS_cipher_ctx_init(ctx);
 
     /* Initialise the encryption operation. */
     const EVP_CIPHER *evpCipher;
@@ -145,18 +134,18 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     if (strcmp(mode,"cbc")!=0) {
       fprintf(stderr, "3DES is only supported in CBC mode");
       return 0;
-    }
-    evpCipher = EVP_des_ede3_cbc();
+    }   
 
+    evpCipher = FIPS_evp_des_ede3_cbc();
 
-    if(EVP_CipherInit_ex(ctx, evpCipher, NULL, NULL, NULL, enc) <= 0) {
-      fprintf(stderr, "EVP_CipherInit_ex failed (1)\n");
+    if(FIPS_cipherinit(ctx, evpCipher, NULL, NULL, enc) <= 0) {
+      fprintf(stderr, "FIPS_cipherinit failed (1)\n");
       return 0;
     }
 
     /* Initialise key and IV */
-    if(EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc) <= 0) {
-      fprintf(stderr, "EVP_CipherInit_ex failed (2)\n");
+    if(FIPS_cipherinit(ctx, NULL, key, iv, enc) <= 0) {
+      fprintf(stderr, "FIPS_cipherinit failed (2)\n");
       return 0;
     }
 
@@ -171,16 +160,14 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         ciphertext_len = len;
     }
 
-    /* Finalise the cryption. Normally ciphertext bytes may be written at
-     * this stage
-     */
+    /* Finalise the cryption. Normally ciphertext bytes may be written at this stage */
     if(1 != EVP_CipherFinal_ex(ctx, ciphertext + len, &len)) {
       fprintf(stderr, "EVP_CipherFinal_ex failed \n");
     }
     ciphertext_len += len;
 
     /* Clean up */
-    EVP_CIPHER_CTX_free(ctx);
+    FIPS_cipher_ctx_free(ctx);
 
     return ciphertext_len;
 }
