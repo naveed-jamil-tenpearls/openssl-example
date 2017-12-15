@@ -23,12 +23,14 @@ int main(int argc, char* argv[]) {
     BIO               *keybio   = NULL;
     BIO               *databio  = NULL;
     BIO               *sigbio   = NULL;
-    EC_KEY            *myecc    = NULL;
+    RSA               *myrsa    = NULL;
     EVP_PKEY          *pkey     = NULL;
-    int               eccgrp;
-    char*             md_type   = "nohash";
-    char*             keypath   = "ecdsa-private.pem";
-    char*             datapath  = "data.bin";
+    EVP_PKEY_CTX      *ctx      = NULL;
+    EVP_MD            *md       = EVP_sha();
+    char*             md_type       = "sha";
+    char*             padding_type  = "pkcs1v15";
+    char*             keypath       = "rsa-private.pem";
+    char*             datapath      = "data.bin";
     char*             signaturepath = "signature.bin";
 
     /* ---------------------------------------------------------- *
@@ -40,13 +42,27 @@ int main(int argc, char* argv[]) {
     /* ---------------------------------------------------------- *
     * Read arguments.                                            *
     * ---------------------------------------------------------- */
-    if (!(argc >= 5)) {
-        BIO_printf(outbio, "USAGE: %s [md] [keypath] [datapath] [signaturepath]\n\n", argv[0]);
+    if (!(argc >= 6)) {
+        BIO_printf(outbio, "USAGE: %s [md] [padding] [keypath] [datapath] [signaturepath]\n\n", argv[0]);
     } else {
-        md_type  = argv[1];
-        keypath  = argv[2];
-        datapath = argv[3];
-        signaturepath = argv[4];
+        md_type       = argv[1];
+        padding_type  = argv[2];
+        keypath       = argv[3];
+        datapath      = argv[4];
+        signaturepath = argv[5];
+    }
+    if (strcmp(md_type, "sha") == 0) {
+        md = EVP_sha();
+    } else if (strcmp(md_type, "sha1") == 0) {
+        md = FIPS_evp_sha1();
+    } else if (strcmp(md_type, "sha224") == 0) {
+        md = FIPS_evp_sha224();
+    } else if (strcmp(md_type, "sha256") == 0) {
+        md = FIPS_evp_sha256();
+    } else if (strcmp(md_type, "sha384") == 0) {
+        md = FIPS_evp_sha384();
+    } else if (strcmp(md_type, "sha512") == 0) {
+        md = FIPS_evp_sha512();
     }
 
     /* ---------------------------------------------------------- *
@@ -57,25 +73,66 @@ int main(int argc, char* argv[]) {
         BIO_printf(outbio, "Key BIO_read_filename error.\n");
         goto FreeAll;
     }
-    
-    if (PEM_read_bio_PrivateKey(keybio, &pkey, NULL, NULL) == NULL) {
-        BIO_printf(outbio, "PEM_read_bio_PrivateKey error.\n");
+
+    if (PEM_read_bio_RSAPrivateKey(keybio, &myrsa, NULL, NULL) == NULL) {
+        BIO_printf(outbio, "PEM_read_bio_RSAPrivateKey error.\n");
         goto FreeAll;
     }
-    BIO_free_all(keybio);
 
-    /* -------------------------------------------------------- *
-    * Now we show how to extract EC-specifics from the key     *
-    * ---------------------------------------------------------*/
-    myecc = EVP_PKEY_get1_EC_KEY(pkey);
-    const EC_GROUP *ecgrp = EC_KEY_get0_group(myecc);
+    pkey = EVP_PKEY_new();
+    if (pkey == NULL) {
+        BIO_printf(outbio, "EVP_PKEY_new error.\n");
+        goto FreeAll;
+    }
 
-    /* ---------------------------------------------------------- *
-    * Here we print the key length, and extract the curve type.  *
-    * ---------------------------------------------------------- */
-    BIO_printf(outbio, "ECC Key size: %d bit\n", EVP_PKEY_bits(pkey));
-    BIO_printf(outbio, "ECC Key type: %s\n\n", OBJ_nid2sn(EC_GROUP_get_curve_name(ecgrp)));
+    if (EVP_PKEY_set1_RSA(pkey, myrsa) != 1) {
+        BIO_printf(outbio, "EVP_PKEY_set1_RSA error.\n");
+        goto FreeAll;
+    }
 
+    ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (!ctx) {
+        BIO_printf(outbio, "EVP_PKEY_CTX_new error.\n");
+        goto FreeAll;
+    }
+
+    if (EVP_PKEY_sign_init(ctx) != 1) {
+        BIO_printf(outbio, "EVP_PKEY_sign_init error.\n");
+        goto FreeAll;
+    }
+
+    if (strcmp(padding_type, "pkcs1v15") == 0) {
+        if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) != 1) {
+            BIO_printf(outbio, "EVP_PKEY_CTX_set_rsa_padding error.\n");
+            goto FreeAll;
+        }
+    } else if (strcmp(padding_type, "pss-auto") == 0) {
+        if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PSS_PADDING) != 1) {
+            BIO_printf(outbio, "EVP_PKEY_CTX_set_rsa_padding error.\n");
+            goto FreeAll;
+        }
+
+        if (EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, -2) != 1) {
+            BIO_printf(outbio, "EVP_PKEY_CTX_set_rsa_pss_saltlen error.\n");
+            goto FreeAll;
+        }
+    } else if (strcmp(padding_type, "pss-equal") == 0) {
+        if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PSS_PADDING) != 1) {
+            BIO_printf(outbio, "EVP_PKEY_CTX_set_rsa_padding error.\n");
+            goto FreeAll;
+        }
+
+        if (EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, -1) != 1) {
+            BIO_printf(outbio, "EVP_PKEY_CTX_set_rsa_pss_saltlen error.\n");
+            goto FreeAll;
+        }
+    }
+
+    if (EVP_PKEY_CTX_set_signature_md(ctx, md) != 1) {
+        BIO_printf(outbio, "EVP_PKEY_CTX_set_signature_md error.\n");
+        goto FreeAll;
+    }
+    
     /* ---------------------------------------------------------- *
     * Read Data                                                  *
     * ---------------------------------------------------------- */
@@ -92,43 +149,46 @@ int main(int argc, char* argv[]) {
         BIO_printf(outbio, "Data BIO_read error.\n");
         goto FreeAll;
     }
-
+    
     /* ---------------------------------------------------------- *
     * Create digest from data                                    *
     * ---------------------------------------------------------- */
     unsigned char *hash;
-    int hashlen;
+    size_t hlen = 0;
+    size_t hashlen = 0;
     if (strcmp(md_type, "nohash") == 0) {
         hash = data;
-        hashlen = datalen;
-    } else if (digest_message(md_type, data, datalen, &hash, &hashlen) != 1) {
+        hlen = datalen;
+    } else if (digest_message(md_type, data, datalen, &hash, &hlen) != 1) {
         BIO_printf(outbio, "Hash error.\n");
         goto FreeAll;
     }
+    hashlen = hlen; // For some reasons, hlen changes
 
     /* ---------------------------------------------------------- *
     * Generate Signature                                         *
     * ---------------------------------------------------------- */
-    ECDSA_SIG *signature = ECDSA_do_sign(hash, hashlen, myecc);
-    if (NULL == signature) {
-        BIO_printf(outbio, "ECDSA_do_sign error.\n");
+    size_t signature_len;
+    if (EVP_PKEY_sign(ctx, NULL, &signature_len, hash, hashlen) != 1) {
+        BIO_printf(outbio, "EVP_PKEY_sign error.\n");
+        goto FreeAll;
+    }
+    
+    unsigned char *signature = malloc(sizeof(unsigned char) * signature_len);
+    if (EVP_PKEY_sign(ctx, signature, &signature_len, hash, hashlen) != 1) {
+        BIO_printf(outbio, "EVP_PKEY_sign - 2 error.\n");
         goto FreeAll;
     }
 
     /* ---------------------------------------------------------- *
-    * Write DER to a file                                        *
+    * Write Signature to a file                                  *
     * ---------------------------------------------------------- */
-    int sigSize = i2d_ECDSA_SIG(signature, NULL);
-    unsigned char* derSig = malloc(sigSize);
-    unsigned char* p = derSig; // Some black magic happening here
-    sigSize = i2d_ECDSA_SIG(signature, &p);
-
     sigbio = BIO_new(BIO_s_file());
     if (BIO_write_filename(sigbio, signaturepath) != 1) {
         BIO_printf(outbio, "Signature BIO_write_filename error.\n");
         goto FreeAll;
     }
-    if (BIO_write(sigbio, derSig, sigSize) < sigSize) {
+    if (BIO_write(sigbio, signature, signature_len) < signature_len) {
         BIO_printf(outbio, "Signature BIO_write error.\n");
         goto FreeAll;
     }
@@ -139,12 +199,12 @@ int main(int argc, char* argv[]) {
     * ---------------------------------------------------------- */
 FreeAll:
     ERR_print_errors(outbio);
-    ECDSA_SIG_free(signature);
     BIO_free_all(sigbio);
     BIO_free_all(databio);
     BIO_free_all(outbio);
+    RSA_free(myrsa);
+    EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
-    EC_KEY_free(myecc);
 
     return 0;
 }
