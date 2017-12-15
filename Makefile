@@ -18,26 +18,6 @@ bin/des-encdec:
 	@echo "+ $@"
 	@$(CC) des-encdec/main.c -o $@ $(CFLAGS) $(LDFLAGS)
 
-all: bin/gen-ecdsa-key
-bin/gen-ecdsa-key:
-	@echo "+ $@"
-	@$(CC) gen-ecdsa-key/main.c -o $@ $(CFLAGS) $(LDFLAGS)
-
-all: bin/gen-ecdsa-sig
-bin/gen-ecdsa-sig:
-	@echo "+ $@"
-	@$(CC) gen-ecdsa-sig/main.c -o $@ $(CFLAGS) $(LDFLAGS)
-
-all: bin/hmac
-bin/hmac:
-	@echo "+ $@"
-	@$(CC) hmac/main.c -o $@ -std=c99 $(CFLAGS) $(LDFLAGS)
-
-all: bin/initialize-fips
-bin/initialize-fips:
-	@echo "+ $@"
-	@$(CC) initialize-fips/main.c -o $@ $(CFLAGS) $(LDFLAGS)
-
 all: bin/fips-selftest
 bin/fips-selftest:
 	@echo "+ $@"
@@ -53,6 +33,46 @@ bin/fips-zerorize:
 	@echo "+ $@"
 	@$(CC) fips-zerorize/main.c -o $@ $(CFLAGS) $(LDFLAGS)
 
+all: bin/gen-ecdsa-key
+bin/gen-ecdsa-key:
+	@echo "+ $@"
+	@$(CC) gen-ecdsa-key/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/gen-ecdsa-sig
+bin/gen-ecdsa-sig:
+	@echo "+ $@"
+	@$(CC) gen-ecdsa-sig/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/gen-random-bytes
+bin/gen-random-bytes:
+	@echo "+ $@"
+	@$(CC) gen-random-bytes/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/gen-rsa-key
+bin/gen-rsa-key:
+	@echo "+ $@"
+	@$(CC) gen-rsa-key/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/gen-rsa-sig
+bin/gen-rsa-sig:
+	@echo "+ $@"
+	@$(CC) gen-rsa-sig/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/hmac
+bin/hmac:
+	@echo "+ $@"
+	@$(CC) hmac/main.c -o $@ -std=c99 $(CFLAGS) $(LDFLAGS)
+
+all: bin/initialize-fips
+bin/initialize-fips:
+	@echo "+ $@"
+	@$(CC) initialize-fips/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/shs
+bin/shs: $(wildcard shs/*.c)
+	@echo "+ $@"
+	@$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+
 all: bin/sym-key-gen
 bin/sym-key-gen:
 	@echo "+ $@"
@@ -62,6 +82,11 @@ all: bin/ver-ecdsa-sig
 bin/ver-ecdsa-sig:
 	@echo "+ $@"
 	@$(CC) ver-ecdsa-sig/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
+all: bin/ver-rsa-sig
+bin/ver-rsa-sig:
+	@echo "+ $@"
+	@$(CC) ver-rsa-sig/main.c -o $@ $(CFLAGS) $(LDFLAGS)
 
 shell: image
 	@echo "+ $@"

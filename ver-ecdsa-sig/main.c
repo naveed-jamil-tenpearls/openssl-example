@@ -5,17 +5,18 @@
 
 void initialize_fips(int mode) {
     if(FIPS_mode_set(mode)) {
-        fprintf(stdout, "FUNCTION: %s, LOG: FIPS MODE SET TO %d\n", __func__, mode);
+        fprintf(stdout, "FIPS Mode Set\n\n");
     }
     else {
-        fprintf(stderr, "FUNCTION: %s, LOG: FIPS MODE NOT SET %d", __func__, mode);
-        ERR_load_crypto_strings();
-        fprintf(stderr, ", ERROR: ");
+        fprintf(stderr, "FIPS Mode Set Error:\n");
         ERR_print_errors_fp(stderr);
     }
 }
 
 int main(int argc, char* argv[]) {
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
     initialize_fips(1);
 
     BIO               *outbio   = NULL;
@@ -45,7 +46,7 @@ int main(int argc, char* argv[]) {
     /* ---------------------------------------------------------- *
     * Read arguments.                                            *
     * ---------------------------------------------------------- */
-    if (!(argc >= 3)) {
+    if (!(argc >= 5)) {
         BIO_printf(outbio, "USAGE: %s [md] [keypath] [datapath] [signaturepath]\n\n", argv[0]);
     } else {
         md_type  = argv[1];
@@ -139,6 +140,7 @@ int main(int argc, char* argv[]) {
     * Free up all structures                                     *
     * ---------------------------------------------------------- */
 FreeAll:
+    ERR_print_errors(outbio);
     ECDSA_SIG_free(signature);
     BIO_free_all(sigbio);
     BIO_free_all(databio);
@@ -162,13 +164,13 @@ int digest_message(const unsigned char *type, const unsigned char *message, size
     if (strcmp(type, "sha") == 0) {
         md = EVP_sha();
     } else if (strcmp(type, "sha1") == 0) {
-        md = EVP_sha1();
+        md = FIPS_evp_sha1();
     } else if (strcmp(type, "sha224") == 0) {
-        md = EVP_sha224();
+        md = FIPS_evp_sha224();
     } else if (strcmp(type, "sha256") == 0) {
-        md = EVP_sha256();
+        md = FIPS_evp_sha256();
     } else if (strcmp(type, "sha512") == 0) {
-        md = EVP_sha512();
+        md = FIPS_evp_sha512();
     }
 
 	if(1 != EVP_DigestInit_ex(mdctx, md, NULL)) {
