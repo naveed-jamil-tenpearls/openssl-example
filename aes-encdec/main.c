@@ -194,12 +194,7 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
       return 0;
     }
 
-    EVP_CIPHER_CTX_set_padding(ctx, 0);
-
-    if (plaintext_len % key_len != 0) {
-        fprintf(stderr, "Error : plaintext is not a multiple of blocksize\n");
-        return 0;
-    }
+    EVP_CIPHER_CTX_set_padding(ctx, plaintext_len % key_len);
 
     /* Provide the message to be encrypted, and obtain the encrypted output. */
     if(plaintext) {
