@@ -63,6 +63,9 @@ void main(int argc, char *argv[])
       if (argc >= 5) {
         mode = argv[4];
       }
+    } else {
+        fprintf(stderr, "USAGE: %s [key] [iv] [plain-text] [mode]\nBy default mode is 'cbc'\n", argv[0]);
+        return 1;
     }
 
     /* Convert key and iv from string to hex */
@@ -192,6 +195,11 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     }
 
     EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+    if (plaintext_len % key_len != 0) {
+        fprintf(stderr, "Error : plaintext is not a multiple of blocksize\n");
+        return 0;
+    }
 
     /* Provide the message to be encrypted, and obtain the encrypted output. */
     if(plaintext) {
