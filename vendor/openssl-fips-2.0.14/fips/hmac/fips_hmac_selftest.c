@@ -113,6 +113,8 @@ static const HMAC_KAT vector[] = {
     },
 };
 
+static int test_fail = 0;
+
 int FIPS_selftest_hmac()
 	{
 	size_t n;
@@ -161,7 +163,7 @@ int FIPS_selftest_hmac()
 			goto err;
 			}
 
-		if(memcmp(out,t->kaval,outlen))
+		if(test_fail || memcmp(out,t->kaval,outlen))
 			{
 			fips_post_failed(FIPS_TEST_HMAC, subid, NULL);
 			rv = 0;

@@ -51,5 +51,8 @@ int main() {
 
     //generate random number of given bytes
     generate_random(1);
+    RAND_cleanup();
+    generate_random(1);
+
     return 0;
 }

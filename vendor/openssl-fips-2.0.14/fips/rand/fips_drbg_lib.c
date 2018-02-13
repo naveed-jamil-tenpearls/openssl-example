@@ -60,6 +60,8 @@
 
 /* Support framework for SP800-90 DRBGs */
 
+int test_fail = 0;
+
 int FIPS_drbg_init(DRBG_CTX *dctx, int type, unsigned int flags)
 	{
 	int rv;
@@ -164,7 +166,7 @@ static size_t fips_get_entropy(DRBG_CTX *dctx, unsigned char **pout,
 	/* Compare consecutive blocks for continuous PRNG test */
 	for (p = tout; p < tout + rv - bl; p += bl)
 		{
-		if (!memcmp(p, p + bl, bl))
+		if (test_fail || !memcmp(p, p + bl, bl))
 			{
 			FIPSerr(FIPS_F_FIPS_GET_ENTROPY, FIPS_R_ENTROPY_SOURCE_STUCK);
 			return 0;
@@ -565,7 +567,7 @@ int fips_drbg_cprng_test(DRBG_CTX *dctx, const unsigned char *out)
 	if (drbg_stick)
 		memcpy(dctx->lb, out, dctx->blocklength);
 	/* Check against last block: fail if match */
-	if (!memcmp(dctx->lb, out, dctx->blocklength))
+	if (test_fail || !memcmp(dctx->lb, out, dctx->blocklength))
 		{
 		FIPSerr(FIPS_F_FIPS_DRBG_CPRNG_TEST, FIPS_R_DRBG_STUCK);
 		fips_set_selftest_fail();
