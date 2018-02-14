@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
@@ -128,27 +129,27 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         fprintf(stderr, "invalid 3DES key length %d\n", key_len);
         return 0;
     }
-    if (strcmp(mode, "cbc") != 0 && strcmp(mode, "ecb") != 0 && strcmp(mode, "ofb") != 0 && strcmp(mode, "cfb1") != 0 && strcmp(mode, "cfb8") != 0 && strcmp(mode, "cfb64") != 0) {
-        fprintf(stderr, "3DES is only supported in CBC, ECB, OFB or CFB mode");
+    if (strcasecmp(mode, "cbc") != 0 && strcasecmp(mode, "ecb") != 0 && strcasecmp(mode, "ofb") != 0 && strcasecmp(mode, "cfb1") != 0 && strcasecmp(mode, "cfb8") != 0 && strcasecmp(mode, "cfb64") != 0) {
+        fprintf(stderr, "3DES is only supported in CBC, ECB, OFB, CFB1, CFB8 or CFB64 mode");
         return 0;
     }   
 
-    if (strcmp(mode, "cbc") == 0) {
+    if (strcasecmp(mode, "cbc") == 0) {
         evpCipher = FIPS_evp_des_ede3_cbc();
     }
-    else if (strcmp(mode, "ofb") == 0) {
+    else if (strcasecmp(mode, "ofb") == 0) {
         evpCipher = FIPS_evp_des_ede3_ofb();
     }
-    else if (strcmp(mode, "cfb1") == 0) {
+    else if (strcasecmp(mode, "cfb1") == 0) {
         evpCipher = FIPS_evp_des_ede3_cfb1();
     }
-    else if (strcmp(mode, "cfb8") == 0) {
+    else if (strcasecmp(mode, "cfb8") == 0) {
         evpCipher = FIPS_evp_des_ede3_cfb8();
     }
-    else if (strcmp(mode, "cfb64") == 0) {
+    else if (strcasecmp(mode, "cfb64") == 0) {
         evpCipher = FIPS_evp_des_ede3_cfb64();
     }
-    else if (strcmp(mode, "ecb") == 0) {
+    else if (strcasecmp(mode, "ecb") == 0) {
         evpCipher = FIPS_evp_des_ede3_ecb();
     }
 
