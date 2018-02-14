@@ -40,10 +40,9 @@ int str2hex(const char hexstring[], unsigned char * val, int *len) {
 void main(int argc, char *argv[])
 {
     initialize_fips(1);
-
     unsigned char *key_str = (unsigned char *)"example key 1234example key 1234";
     unsigned char *iv_str = (unsigned char *)"0123456789012341";
-    unsigned char *plaintext = (unsigned char *)"exampleplaintextexampleplaintext";
+    unsigned char *plaintext = (unsigned char *)"exampleplaintext";
     unsigned char *mode = (unsigned char *)"cbc";
     unsigned char key[1024];
     unsigned char iv[1024];
@@ -64,8 +63,8 @@ void main(int argc, char *argv[])
         mode = argv[4];
       }
     } else {
-        fprintf(stderr, "USAGE: %s [key] [iv] [plain-text] [mode]\nBy default mode is 'cbc'\n", argv[0]);
-        return 1;
+        fprintf(stderr, "USAGE: %s [key] [iv] [plain-text] [mode]\n Mode: (cbc/ecb/ctr/ofb/cfb1/cfb8/cfb128/gcm/ccm). Default mode is 'cbc'\n", argv[0]);
+        return;
     }
 
     /* Convert key and iv from string to hex */
@@ -140,6 +139,16 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
             evpCipher = FIPS_evp_aes_128_gcm();
         } else if (strcmp(mode,"ecb")==0) {
             evpCipher = FIPS_evp_aes_128_ecb();
+        } else if (strcmp(mode,"cfb1")==0) {
+            evpCipher = FIPS_evp_aes_128_cfb1();
+        } else if (strcmp(mode,"cfb8")==0) {
+            evpCipher = FIPS_evp_aes_128_cfb8();
+        } else if (strcmp(mode,"cfb128")==0) {
+            evpCipher = FIPS_evp_aes_128_cfb128();
+        } else if (strcmp(mode,"ofb")==0) {
+            evpCipher = FIPS_evp_aes_128_ofb();
+        } else if (strcmp(mode,"ccm")==0) {
+            evpCipher = FIPS_evp_aes_128_ccm();
         } else {
             fprintf(stderr, "invalid mode\n");
             return 0;
@@ -154,6 +163,16 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
             evpCipher = FIPS_evp_aes_192_gcm();
         } else if (strcmp(mode,"ecb")==0) {
             evpCipher = FIPS_evp_aes_192_ecb();
+        } else if (strcmp(mode,"cfb1")==0) {
+            evpCipher = FIPS_evp_aes_192_cfb1();
+        } else if (strcmp(mode,"cfb8")==0) {
+            evpCipher = FIPS_evp_aes_192_cfb8();
+        } else if (strcmp(mode,"cfb128")==0) {
+            evpCipher = FIPS_evp_aes_192_cfb128();
+        } else if (strcmp(mode,"ofb")==0) {
+            evpCipher = FIPS_evp_aes_192_ofb();
+        } else if (strcmp(mode,"ccm")==0) {
+            evpCipher = FIPS_evp_aes_192_ccm();
         } else {
             fprintf(stderr, "invalid mode\n");
             return 0;
@@ -168,6 +187,16 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
             evpCipher = FIPS_evp_aes_256_gcm();
         } else if (strcmp(mode,"ecb")==0) {
             evpCipher = FIPS_evp_aes_256_ecb();
+        } else if (strcmp(mode,"cfb1")==0) {
+           evpCipher = FIPS_evp_aes_256_cfb1();
+        } else if (strcmp(mode,"cfb8")==0) {
+           evpCipher = FIPS_evp_aes_256_cfb8();
+        } else if (strcmp(mode,"cfb128")==0) {
+           evpCipher = FIPS_evp_aes_256_cfb128();
+        } else if (strcmp(mode,"ofb")==0) {
+           evpCipher = FIPS_evp_aes_256_ofb();
+        } else if (strcmp(mode,"ccm")==0) {
+           evpCipher = FIPS_evp_aes_256_ccm();
         } else {
             fprintf(stderr, "invalid mode\n");
             return 0;
@@ -194,7 +223,7 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
       return 0;
     }
 
-    EVP_CIPHER_CTX_set_padding(ctx, plaintext_len % key_len);
+    EVP_CIPHER_CTX_set_padding(ctx, 1);
 
     /* Provide the message to be encrypted, and obtain the encrypted output. */
     if(plaintext) {
@@ -206,10 +235,19 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     }
 
     /* Finalise the cryption. Normally ciphertext bytes may be written at this stage */
-    if(1 != EVP_CipherFinal_ex(ctx, ciphertext + len, &len)) {
-      fprintf(stderr, "EVP_CipherFinal_ex failed \n");
+    if(strcmp(mode,"ccm")!=0 && strcmp(mode,"gcm")!=0) {
+      if(1 != EVP_CipherFinal_ex(ctx, ciphertext + len, &len)) {
+        fprintf(stderr, "EVP_CipherFinal_ex failed \n");
+      }
+        ciphertext_len += len;
+    } else {
+      if(enc==1) {
+        if(1 != EVP_CipherFinal_ex(ctx, ciphertext + len, &len)) {
+          fprintf(stderr, "EVP_CipherFinal_ex failed \n");
+        }
+          ciphertext_len += len;
+      }
     }
-    ciphertext_len += len;
 
     /* Clean up */
     FIPS_cipher_ctx_free(ctx);
