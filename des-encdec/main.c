@@ -26,10 +26,6 @@ int str2hex(const char hexstring[], unsigned char *val, int *len) {
     const char *pos = hexstring;
     size_t count = 0;
 
-    if (strlen(hexstring) % 2 == 1)
-        return 0;
-
-     /* WARNING: no sanitization or error-checking whatsoever */
     for (count = 0; count < strlen(hexstring) / 2; count++) {
         sscanf(pos, "%2hhx", &val[count]);
         pos += 2;
@@ -42,9 +38,9 @@ int str2hex(const char hexstring[], unsigned char *val, int *len) {
 void main(int argc, char *argv[]) {
     initialize_fips(1);
 
-    unsigned char *key_str = (unsigned char *)"example key 1234example key 1234";
-    unsigned char *iv_str = (unsigned char *)"0123456789012341";
-    unsigned char *plaintext = (unsigned char *)"exampleplaintextexampleplaintext";
+    unsigned char *key_str = (unsigned char *)"AFB123456FADE12349870BFED78103FEDAB12345678FADEC";
+    unsigned char *iv_str = (unsigned char *)"AFD123457F81235910";
+    unsigned char *plaintext = (unsigned char *)"I m software dev";
     unsigned char *mode = (unsigned char *)"cbc";
     unsigned char key[1024];
     unsigned char iv[1024];
@@ -53,63 +49,78 @@ void main(int argc, char *argv[]) {
     unsigned char decryptedtext[1024];
     int decryptedtext_len = 0, ciphertext_len = 0;
 
-    if (argc >= 3) {
-        key_str = argv[1];
-        iv_str = argv[2];
-
-        if (argc >= 4) {
-            plaintext = argv[3];
-        }
-
-        if (argc >= 5) {
-            mode = argv[4];
-        }
+    if(argc < 5) {
+        printf("\nUsing default values, to give custom values, run: \n");
+        printf("./des-endec Key(in hex) IV(in hex) plaintText mode(ofb/cbc/ecb/cfb1/cfb8/cfb64)\n");
     }
 
-   /* Convert key and iv from string to hex */
+    if (argc >= 2) {
+        key_str = argv[1];
+    }
+    if (argc >= 3) {
+        iv_str = argv[2];
+    }
+    if (argc >= 4) {
+        plaintext = argv[3];
+    }
+    if (argc >= 5) {
+        mode = argv[4];
+    }
+
+    // Convert key from string to hex
     if (!str2hex(key_str, key, &key_len)) {
         printf("ERROR");
         return;
     }
-
+    // Convert iv from string to hex
     if (!str2hex(iv_str, iv, &iv_len)) {
         printf("ERROR");
         return;
     }
 
-    /* Encrypt the plaintext */
-    fprintf(stdout, "\nEncryption:\n");
-
-    ciphertext_len = encdec(plaintext, strlen(plaintext), key, key_len, iv, ciphertext, mode, 1);
-
-    /* Do something useful with the ciphertext here */
-    fprintf(stdout, "Plaintext: %s\n", plaintext);
-    fprintf(stdout, "KEY: ");
+    fprintf(stdout, "\nPlaintext: %s\n", plaintext);
+    fprintf(stdout, "Key: ");
     print_hex(stdout, key);
     fprintf(stdout, "IV: ");
     print_hex(stdout, iv);
+    fprintf(stdout, "Mode: %s\n", mode);
+
+    if (strcasecmp(mode, "cbc") != 0 && strcasecmp(mode, "ecb") != 0 && strcasecmp(mode, "ofb") != 0 && strcasecmp(mode, "cfb1") != 0 && strcasecmp(mode, "cfb8") != 0 && strcasecmp(mode, "cfb64") != 0) {
+        fprintf(stderr, "\nIncorrect mode!");
+        fprintf(stderr, "\n3DES is only supported in CBC, ECB, OFB, CFB1, CFB8 and CFB64 modes\n");
+        return;
+    }
+
+    fprintf(stdout, "\nEncryption:\n");
+    printf("-----------\n");
+
+    // Encrypt the plaintext
+    ciphertext_len = encdec(plaintext, strlen(plaintext), key, key_len, iv, ciphertext, mode, 1);
+    
     fprintf(stdout, "Ciphertext : ");
     print_hex(stdout, ciphertext);
 
-    /* Decrypt the ciphertext */
     fprintf(stdout, "\nDecryption:\n");
+    printf("-----------\n");
 
+    // Decrypt the ciphertext
     decryptedtext_len = encdec(ciphertext, ciphertext_len, key, key_len, iv, decryptedtext, mode, 0);
 
     if (decryptedtext_len < 0) {
-        /* Verify error */
+        // Verify error
         printf("Decrypted text failed to verify\n");
     }
     else {
-        /* Add a NULL terminator. We are expecting printable text */
+        // Add a NULL terminator. We are expecting printable text
         decryptedtext[decryptedtext_len] = '\0';
 
-        /* Show the decrypted text */
+        // Show the decrypted text
         printf("Decrypted text is: ");
         printf("%s\n", decryptedtext);
     }
 
-    /* Remove error strings */
+    printf("\n");
+    // Remove error strings
     ERR_free_strings();
 }
 
@@ -119,21 +130,13 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     EVP_CIPHER_CTX *ctx = NULL;
     int len = 0, ciphertext_len = 0;
 
-    /* Create and initialise the context */
+    // Create and initialise the context
     ctx = malloc(sizeof(EVP_CIPHER_CTX));
     FIPS_cipher_ctx_init(ctx);
 
-    /* Initialise the encryption operation. */
     const EVP_CIPHER *evpCipher;
-    if (key_len != 24) {
-        fprintf(stderr, "invalid 3DES key length %d\n", key_len);
-        return 0;
-    }
-    if (strcasecmp(mode, "cbc") != 0 && strcasecmp(mode, "ecb") != 0 && strcasecmp(mode, "ofb") != 0 && strcasecmp(mode, "cfb1") != 0 && strcasecmp(mode, "cfb8") != 0 && strcasecmp(mode, "cfb64") != 0) {
-        fprintf(stderr, "3DES is only supported in CBC, ECB, OFB, CFB1, CFB8 or CFB64 mode");
-        return 0;
-    }   
 
+    // Initialise the encryption operation
     if (strcasecmp(mode, "cbc") == 0) {
         evpCipher = FIPS_evp_des_ede3_cbc();
     }
@@ -158,15 +161,15 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         return 0;
     }
 
-    /* Initialise key and IV */
+    // Initialise key and IV
     if (FIPS_cipherinit(ctx, NULL, key, iv, enc) <= 0) {
         fprintf(stderr, "FIPS_cipherinit failed (2)\n");
         return 0;
     }
 
-    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    EVP_CIPHER_CTX_set_padding(ctx, 1);
 
-    /* Provide the message to be crypted, and obtain the crypted output. */
+    // Provide the message to be crypted, and obtain the crypted output
     if (plaintext) {
         if (1 != EVP_CipherUpdate(ctx, ciphertext, &len, plaintext, plaintext_len)) {
             fprintf(stderr, "EVP_CipherUpdate failed \n");
@@ -175,7 +178,7 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         ciphertext_len = len;
     }
 
-    /* Finalise the cryption. Normally ciphertext bytes may be written at this stage */
+    // Finalise the cryption. Normally ciphertext bytes may be written at this stage
     if (1 != EVP_CipherFinal_ex(ctx, ciphertext + len, &len)) {
         fprintf(stderr, "EVP_CipherFinal_ex failed \n");
         ERR_load_crypto_strings();
@@ -184,7 +187,7 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
     }
     ciphertext_len += len;
 
-    /* Clean up */
+    // Clean up
     FIPS_cipher_ctx_free(ctx);
 
     return ciphertext_len;
