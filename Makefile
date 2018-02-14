@@ -13,6 +13,11 @@ bin/aes-encdec:
 	@echo "+ $@"
 	@$(CC) aes-encdec/main.c -o $@ $(CFLAGS) $(LDFLAGS)
 
+all: bin/ccm-encdec
+bin/ccm-encdec:
+	@echo "+ $@"
+	@$(CC) ccm-encdec/main.c -o $@ $(CFLAGS) $(LDFLAGS)
+
 all: bin/des-encdec
 bin/des-encdec:
 	@echo "+ $@"
