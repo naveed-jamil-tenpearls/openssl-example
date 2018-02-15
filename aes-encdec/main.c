@@ -40,6 +40,7 @@ int str2hex(const char hexstring[], unsigned char * val, int *len) {
 void main(int argc, char *argv[])
 {
     initialize_fips(1);
+    unsigned char tag[16] = "0123456789012341";
     unsigned char *key_str = (unsigned char *)"example key 1234example key 1234";
     unsigned char *iv_str = (unsigned char *)"0123456789012341";
     unsigned char *plaintext = (unsigned char *)"exampleplaintext";
@@ -81,7 +82,7 @@ void main(int argc, char *argv[])
     /* Encrypt the plaintext */
     fprintf(stdout, "\nEncryption:\n");
 
-    ciphertext_len = encdec(plaintext, strlen(plaintext), key, key_len, iv, ciphertext, mode, 1);
+    ciphertext_len = encdec(plaintext, strlen(plaintext), key, key_len, iv, ciphertext, mode, 1, tag);
 
     /* Do something useful with the ciphertext here */
     fprintf(stdout, "Plaintext: %s\n", plaintext);
@@ -95,7 +96,7 @@ void main(int argc, char *argv[])
     /* Decrypt the ciphertext */
     fprintf(stdout, "\nDecryption:\n");
 
-    decryptedtext_len = encdec(ciphertext, ciphertext_len, key, key_len, iv, decryptedtext, mode, 0);
+    decryptedtext_len = encdec(ciphertext, ciphertext_len, key, key_len, iv, decryptedtext, mode, 0, tag);
 
     if(decryptedtext_len < 0)
     {
@@ -118,7 +119,7 @@ void main(int argc, char *argv[])
 }
 
 int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int key_len,
-            unsigned char *iv, unsigned char *ciphertext, unsigned char *mode, int enc) {
+            unsigned char *iv, unsigned char *ciphertext, unsigned char *mode, int enc, unsigned char* tag) {
 
     EVP_CIPHER_CTX *ctx = NULL;
     int len = 0, ciphertext_len = 0;
@@ -217,6 +218,19 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         if(1 != FIPS_cipher_ctx_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, strlen(iv), NULL))
             fprintf(stderr, "FIPS_cipher_ctx_ctrl GCM_SET_IVLEN failed. \n");
 
+    if(strcmp(mode,"ccm")==0) {
+    	if(1 != FIPS_cipher_ctx_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, 7, NULL))
+          fprintf(stderr, "CCM_SET_IVLEN failed. \n");
+
+      if(enc == 1 ) {
+      /* Set tag length */
+      	FIPS_cipher_ctx_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, 14, NULL);
+      } else {
+        if(1 != FIPS_cipher_ctx_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, 14, tag))
+          fprintf(stderr, "EVP_CTRL_CCM_SET_TAG failed. \n");
+      }
+    }
+
     /* Initialise key and IV */
     if(FIPS_cipherinit(ctx, NULL, key, iv, enc) <= 0) {
       fprintf(stderr, "FIPS_cipherinit failed (2)\n");
@@ -247,6 +261,11 @@ int encdec(unsigned char *plaintext, int plaintext_len, unsigned char *key, int 
         }
           ciphertext_len += len;
       }
+    }
+
+    if(strcmp(mode,"ccm")==0 && enc == 1 ) {
+      if(1 != FIPS_cipher_ctx_ctrl(ctx, EVP_CTRL_CCM_GET_TAG, 14, tag))
+          fprintf(stderr, "EVP_CTRL_CCM_GET_TAG failed \n");
     }
 
     /* Clean up */
