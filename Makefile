@@ -93,6 +93,11 @@ bin/ver-rsa-sig:
 	@echo "+ $@"
 	@$(CC) ver-rsa-sig/main.c -o $@ $(CFLAGS) $(LDFLAGS)
 
+all: bin/gen-ecdh-key
+bin/gen-ecdh-key:
+	@echo "+ $@"
+	@$(CC) gen-ecdh-key/main.c -o $@ $(CFLAGS) $(LDFLAGS) -I /usr/local/ssl/fips-2.0/include
+
 shell: image
 	@echo "+ $@"
 	docker run -it --rm --privileged -v ${PWD}:/root/src openssl:fips
